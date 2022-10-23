@@ -11,6 +11,10 @@ const { StreamType, joinVoiceChannel,getVoiceConnection, VoiceConnectionStatus, 
 var validUrl = require('valid-url');
 
 
+let {Commands} = require("./modules/commands");
+
+
+
 
 console.log(Object.keys(VoiceConnectionStatus))
 
@@ -120,12 +124,15 @@ Channel: %channel%
 `;
 
 
+
+
+//https://discord.com/channels/194944693593702400/1033552187290296370
 async function sendDashboard(){
   try {
     let face = faceTemp;
     face = face.replace("%title%", playerState.playing);
     face = face.replace("%channel%", playerState.channel);
-    let channel = await client.channels.fetch('906268142278410330');
+    let channel = await client.channels.fetch('1033552187290296370');
     let messages = await channel.messages.fetch()
     await channel.bulkDelete(messages);
     let msg = await channel.send(face);
@@ -146,36 +153,67 @@ client.on('ready', async () => {
   await sendDashboard();
 });
 
-client.on("messageCreate", async message => {
 
+
+let connection = null;
+
+client.on("messageCreate", async message => {
+  console.log(`====== MESSAGE INBOUND =======`);
+  
+  let content = message.content;
+  let channelId = message.channelId;
+  
+  if(channelId !== "1033552187290296370"){
+    console.log("Not Music Channel");
+    return;
+  }
+  
+  console.log("MESSAGE IN BOT CHANNEL");
+  
 
   try {
-    let content = message.content;
-    console.log(content);
-    let channelId = message.channelId;
+    // let channel = await client.channels.fetch(channelId);
+
+
+    console.log("Voice ID", message.member.voice.id);
+    console.log("Guild ID", message.guild.id);
+    console.log("Adapter Creator", message.guild.voiceAdapterCreator);
     
-    let channel = await client.channels.fetch(channelId);
-    if (channel.name !== "music-bot-test") throw new Error("Channel is not music-bot-test");
+    console.log(message);
+
+
+    if(message.content.includes("!join") && !connection){
+      console.log("Trying To Join Chat");
+      connection = joinVoiceChannel({
+        channelId: message.member.voice.channel.id,
+        guildId: message.guild.id,
+        adapterCreator: message.guild.voiceAdapterCreator,
+        selfDeaf: false,
+        selfMute: false,
+      });
+
+      connection.on(VoiceConnectionStatus.Ready, () => {
+        connection.subscribe(player);
+      });
+    }
+
     if(!message.content.includes("Dash")) {
       message.delete();
     }
 
 
-    let connection = joinVoiceChannel({
-      guildId: message.guild.id,
-      channelId: message.member.voice.channel.id,
-      selfDeaf: true,
-      adapterCreator: message.guild.voiceAdapterCreator
-    });
 
-    addToQueue(content);
+    // play youtube link
+    if(connection && message.content.includes("!yt ")) {
+      let link = message.content.replace("!yt ", "");
+      addToQueue(link);
+    }
 
-    connection.on(VoiceConnectionStatus.Ready, () => {
-      connection.subscribe(player);
-    });
   } catch (error) {
     console.error(error);
   }
+
+  console.log(`/====== MESSAGE INBOUND =======/`);
 });
 
 
@@ -204,3 +242,10 @@ client.on('messageReactionRemove', function(reaction){
 });
 
 client.login(process.env.TOKEN);
+
+
+
+let {Play} = Commands;
+
+let p = new Play();
+console.log(play);
